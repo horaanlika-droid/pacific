@@ -6,8 +6,10 @@
 Запуск: /tmp/pkenv/bin/python cad/pk_popup.py
 """
 import math, os
+import sys
 import ezdxf
-from ezdxf.enums import TextEntityAlignment
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pk_geom as G   # перфорация и логотип выдачи — из геометрии лотка
 
 OUT = os.path.join(os.path.dirname(__file__), '..', 'docs', 'popup', 'cnc')
 T = 12.0                      # толщина фанеры
@@ -39,9 +41,9 @@ class Part:
 # ---------- детали ----------
 def side():
     # профиль в плоскости YZ: y — глубина от фасада, z — высота
-    p = Part('PK-POP-01', 'Боковина (2 шт., зеркально)', 600, 1020, 2,
-             'ступень: 1020 спереди, 838 под столешницей (рабочая плоскость 850)')
-    p.cuts.append(([(0, 0, 0), (600, 0, 0), (600, 838, 0), (140, 838, 0), (140, 1020, 0), (0, 1020, 0)], True))
+    p = Part('PK-POP-01', 'Боковина (2 шт., зеркально)', 600, 1038, 2,
+             'ступень: 1038 спереди (плита выдачи 12 → 1050), 838 под столешницей (рабочая плоскость 850)')
+    p.cuts.append(([(0, 0, 0), (600, 0, 0), (600, 838, 0), (140, 838, 0), (140, 1038, 0), (0, 1038, 0)], True))
     # винты в торец дна: Ø4 на z=6
     for y in (60, 200, 400, 540):
         p.holes.append((y, 6, 4.0))
@@ -50,6 +52,19 @@ def side():
         for z in (100, 300, 500, 700, 900):
             p.holes.append((y, z, 4.0))
     p.texts.append((20, 960, 'PK-POP-01'))
+    return p
+
+def tray():
+    # выдача: плита 900 × 140, 12 мм; координаты лотка из pk_geom (зона выдачи начинается на TRAY_Y_TOP0)
+    p = Part('PK-POP-07', 'Выдача (плита лотка)', W, 140, 1,
+             'перфорация-слоты 40×3 и логотип ПАСИФИК ТУРБО — сквозной рез; на боковинах, без поперечины — проверить прогиб')
+    p.cuts.append(rect(0, 0, W, 140))
+    dy = G.TRAY_Y_TOP0
+    for (x, y) in G.PERF:
+        p.cuts.append(([(px, py, 0) for px, py in G.obround_pts(x + 20.0, y - dy, 40.0, 3.0)], True))
+    for c in G.logo_cuts():
+        p.cuts.append(([(x, y - dy, 0) for x, y in c['pts']], True))
+    p.texts.append((20, 120, 'PK-POP-07'))
     return p
 
 def bottom():
@@ -64,7 +79,7 @@ def bottom():
 def countertop():
     # столешница: 900 × 460; local y=0 — передняя кромка рабочей зоны
     p = Part('PK-POP-03', 'Столешница рабочей зоны', W, 460, 1,
-             '4 × GN 1/9 и мойка; верх — ламинат или лист 304; мойка — стальная вставка')
+             'фанера 12 мм, 4 × GN 1/9 и вырез мойки; верх — масло или ламинат; мойка — стальная вставка')
     p.cuts.append(rect(0, 0, W, 460))
     for i in range(4):
         x = 48 + i * 108
@@ -106,7 +121,7 @@ def rail():
     p.texts.append((20, 25, 'PK-POP-06'))
     return p
 
-PARTS = [side(), bottom(), countertop(), front(), partition(), rail()]
+PARTS = [side(), bottom(), countertop(), tray(), front(), partition(), rail()]
 
 # ---------- DXF ----------
 def write_part_dxf(p, path):
