@@ -6,7 +6,7 @@ E3     Фасадный блок нижний                      900.0 x  374.
 E4     Фасадный блок средний                     900.0 x  374.8  t=1.2   3.21 кг  fasadnyy_blok_sredniy
 E5     Фасадный блок верхний                     900.0 x  374.8  t=1.2   3.21 кг  fasadnyy_blok_verhniy
 E6     Зона выдачи: перфорированный лоток        900.0 x  190.8  t=1.0   1.05 кг  zona_vydachi_perforirovannyy_lotok
-E7     Рабочая зона: столешница с вырезами       954.7 x  514.7  t=1.5   3.32 кг  rabochaya_zona_stoleshnica_s_vyrezami
+E7     Рабочая зона: столешница с вырезами       954.7 x  514.7  t=1.5   3.96 кг  rabochaya_zona_stoleshnica_s_vyrezami
 E6.1   Лоток: нижний лист                        894.0 x  136.0  t=1.0   0.96 кг  lotok_nizhniy_list
 E8.1   Перегородка чехла                         640.0 x  240.0  t=3.0   0.42 кг  peregorodka_chehla
 E8.2   Перегородка чехла                         640.0 x  240.0  t=3.0   0.42 кг  peregorodka_chehla
