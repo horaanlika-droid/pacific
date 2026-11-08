@@ -371,13 +371,28 @@ def draw_iso(c, items, rect, lw=0.55, pad=6.0, labels=None, accent=None,
         ff = ACC if ac else (f or FILL_FRONT)
         fs = ACC if ac else (it.get('fill_side') or FILL_SIDE)
         ft = ACC if ac else (it.get('fill_top') or FILL_TOP)
-        # передняя грань
-        if (y1 - y0) > 2.0 or abs(it.get('front', 1)):
-            face([T((x0, y0, z0)), T((x1, y0, z0)), T((x1, y0, z1)), T((x0, y0, z1))], ff)
-        # правая грань
-        face([T((x1, y0, z0)), T((x1, y1, z0)), T((x1, y1, z1)), T((x1, y0, z1))], fs)
-        # верхняя грань
-        face([T((x0, y0, z1)), T((x1, y0, z1)), T((x1, y1, z1)), T((x0, y1, z1))], ft)
+        step = it.get('step')
+        if step:
+            ym, zlo = step
+            # передняя грань
+            if (y1 - y0) > 2.0 or abs(it.get('front', 1)):
+                face([T((x0, y0, z0)), T((x1, y0, z0)), T((x1, y0, z1)), T((x0, y0, z1))], ff)
+            # вертикальный торец уступа (при взгляде спереди-справа он отвёрнут, но виден сверху в разборе)
+            if it.get('show_step_top'):
+                face([T((x0, ym, zlo)), T((x1, ym, zlo)), T((x1, y1, zlo)), T((x0, y1, zlo))], ft)
+            # правая L-образная грань
+            face([T((x1, y0, z0)), T((x1, y1, z0)), T((x1, y1, zlo)),
+                  T((x1, ym, zlo)), T((x1, ym, z1)), T((x1, y0, z1))], fs)
+            # верхняя грань передней стойки
+            face([T((x0, y0, z1)), T((x1, y0, z1)), T((x1, ym, z1)), T((x0, ym, z1))], ft)
+        else:
+            # передняя грань
+            if (y1 - y0) > 2.0 or abs(it.get('front', 1)):
+                face([T((x0, y0, z0)), T((x1, y0, z0)), T((x1, y0, z1)), T((x0, y0, z1))], ff)
+            # правая грань
+            face([T((x1, y0, z0)), T((x1, y1, z0)), T((x1, y1, z1)), T((x1, y0, z1))], fs)
+            # верхняя грань
+            face([T((x0, y0, z1)), T((x1, y0, z1)), T((x1, y1, z1)), T((x0, y1, z1))], ft)
         # вырезы в верхней плоскости
         for h in (it.get('holes') or []):
             hx, hy, hw, hh, hr = h

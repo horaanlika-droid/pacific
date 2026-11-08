@@ -14,8 +14,10 @@ T = 1.5                                  # основная толщина AISI 
 T_FR = 1.2                               # фасадные блоки
 T_GR = 1.0                               # перфорированная решётка
 
-SIDE_TOP = 1020.0                        # верх боковой стенки (низ столешницы)
+SIDE_TOP = 1020.0                        # верх передней стойки боковины (под лоток выдачи)
+WORK_H = 850.0                           # высота рабочей поверхности (уровень бедра, -200 от борта)
 TOP_DOWN = 30.0                          # глубина отбортовки столешницы
+WORK_TOP = WORK_H - TOP_DOWN             # 820.0 — опорная полка рабочей зоны (низ столешницы)
 DRIP_D = 140.0                           # глубина зоны выдачи
 TOP_D = D - DRIP_D                       # 460 — глубина рабочей зоны
 PANEL_H, PANEL_GAP, PANEL_BOT = 334.0, 3.0, 12.0   # фасад: 3 x 334 + 2 x 3 = 1008
@@ -138,17 +140,29 @@ def _poly_area(p):
 
 
 # ================================================================ E1 / E2
-#  Боковая стенка. Развёртка: X = глубина, Y = высота.
-#  Пластина 599 x 1020, отбортовки: перед 30 (с пазами), зад 30, верх 40, низ 15.
-SW = DEV30 + SIDE_DEPTH + DEV30          # 653.7
+#  Боковая стенка ступенчатая. Развёртка: X = глубина, Y = высота.
+#  Передняя стойка 140 x 1020 (под фасад и лоток выдачи 1050),
+#  рабочая часть 460 x 820 (под столешницу на уровне бедра 850).
+#  Отбортовки: перед 30 (с пазами), зад 30, верх 40 (двухуровневая), низ 15.
+SW = DEV30 + SIDE_DEPTH + DEV30          # 653.5
 SH = DEV15 + SIDE_TOP + DEV40            # 1069.7
 PL_X = DEV30                              # 27.35 — левая кромка пластины в развёртке
 TOPY = 140.0 - DEV30                      # 112,65 — сдвиг вырезов E7 в станции по Y
 PL_Y = DEV15                              # 12.35
+STEP_X = PL_X + (DRIP_D - T_FR)           # 166.15 — граница уступа 1020 -> 820
 
 
 def side_wall(mirror=False):
-    outline = cross_outline(0, 0, SIDE_DEPTH, SIDE_TOP, DEV30, DEV30, DEV15, DEV40)
+    x_r = PL_X + SIDE_DEPTH
+    y_hi = PL_Y + SIDE_TOP
+    y_lo = PL_Y + WORK_TOP
+    outline = [
+        (PL_X, 0), (x_r, 0), (x_r, PL_Y),
+        (SW, PL_Y), (SW, y_lo), (x_r, y_lo),
+        (x_r, y_lo + DEV40), (STEP_X, y_lo + DEV40),
+        (STEP_X, y_hi), (STEP_X, SH), (PL_X, SH),
+        (PL_X, y_hi), (0, y_hi), (0, PL_Y), (PL_X, PL_Y),
+    ]
     if mirror:
         outline = [(SW - x, y) for (x, y) in outline][::-1]
 
@@ -162,25 +176,26 @@ def side_wall(mirror=False):
         cy = PL_Y + z
         cuts.append(dict(type='circle', cx=13.5, cy=cy, r=6.5))
         cuts.append(dict(type='poly', pts=obround_pts(13.5, cy + 13.0, 9.0, 13.0 + 12.0)))
-    # пазы и штифты в верхней отбортовке под столешницу
-    for x in (120.0, 470.0):
-        cuts.append(dict(type='poly', pts=obround_pts(PL_X + x, PL_Y + SIDE_TOP + DEV40 / 2, 26, 11)))
-    for x in (250.0, 560.0):
-        cuts.append(dict(type='circle', cx=PL_X + x, cy=PL_Y + SIDE_TOP + DEV40 / 2, r=4.5))
-    # вентиляционные просечки в задней отбортовке (3 шт.) + отверстия под стяжки
-    for z in (300.0, 510.0, 720.0):
-        cuts.append(dict(type='poly', pts=obround_pts(PL_X + SIDE_DEPTH + DEV30 / 2,
+    # пазы и штифты в опорной полке рабочей зоны (отм. 820) под столешницу
+    for x in (200.0, 500.0):
+        cuts.append(dict(type='poly', pts=obround_pts(PL_X + x, y_lo + DEV40 / 2, 26, 11)))
+    for x in (310.0, 560.0):
+        cuts.append(dict(type='circle', cx=PL_X + x, cy=y_lo + DEV40 / 2, r=4.5))
+    # вентиляционные просечки в задней отбортовке (3 шт., в пределах высоты 820)
+    for z in (220.0, 410.0, 600.0):
+        cuts.append(dict(type='poly', pts=obround_pts(x_r + DEV30 / 2,
                                                       PL_Y + z, 9.0, 70.0)))
     # технологические отверстия в углах гиба
-    for (x, y) in [(PL_X, PL_Y), (PL_X + SIDE_DEPTH, PL_Y),
-                   (PL_X, PL_Y + SIDE_TOP), (PL_X + SIDE_DEPTH, PL_Y + SIDE_TOP)]:
+    for (x, y) in [(PL_X, PL_Y), (x_r, PL_Y),
+                   (PL_X, y_hi), (STEP_X, y_lo), (x_r, y_lo)]:
         cuts.append(dict(type='circle', cx=x, cy=y, r=RELIEF / 2))
     # линии гиба
     bends = [
-        dict(p1=(PL_X, PL_Y), p2=(PL_X, PL_Y + SIDE_TOP), ang=90, note='передняя отбортовка 30 вверх'),
-        dict(p1=(PL_X + SIDE_DEPTH, PL_Y), p2=(PL_X + SIDE_DEPTH, PL_Y + SIDE_TOP), ang=90, note='задняя отбортовка 30'),
-        dict(p1=(PL_X, PL_Y + SIDE_TOP), p2=(PL_X + SIDE_DEPTH, PL_Y + SIDE_TOP), ang=90, note='верхняя отбортовка 40'),
-        dict(p1=(PL_X, PL_Y), p2=(PL_X + SIDE_DEPTH, PL_Y), ang=90, note='нижняя отбортовка 15'),
+        dict(p1=(PL_X, PL_Y), p2=(PL_X, y_hi), ang=90, note='передняя отбортовка 30 вверх'),
+        dict(p1=(x_r, PL_Y), p2=(x_r, y_lo), ang=90, note='задняя отбортовка 30'),
+        dict(p1=(PL_X, y_hi), p2=(STEP_X, y_hi), ang=90, note='верхняя полка 40 (зона выдачи 1020)'),
+        dict(p1=(STEP_X, y_lo), p2=(x_r, y_lo), ang=90, note='опорная полка 40 (рабочая зона 820)'),
+        dict(p1=(PL_X, PL_Y), p2=(x_r, PL_Y), ang=90, note='нижняя отбортовка 15'),
     ]
     if mirror:
         def _mx(p):
@@ -191,8 +206,8 @@ def side_wall(mirror=False):
         bends = [dict(p1=_mx(b['p1']), p2=_mx(b['p2']), ang=b['ang'], note=b['note'])
                  for b in bends]
     notes = ['Отбортовки — внутрь станции.',
-             'Пазы 26x11 в верхней отбортовке — под кулачковые замки столешницы.',
-             'Отверстия Ø9 в верхней отбортовке — под установочные штифты Ø8.']
+             'Ступенчатый профиль: передняя стойка 1020 мм (под выдачу 1050), рабочая зона 820 мм (под столешницу 850).',
+             'Пазы 26x11 и отверстия Ø9 в полке 820 — под кулачковые замки и штифты столешницы.']
     p = Part('E1' if not mirror else 'E2',
              'Стенка боковая левая' if not mirror else 'Стенка боковая правая',
              'AISI 304, шлиф. Scotch-Brite', T, 1, SW, SH, outline, cuts, bends, notes)
@@ -245,7 +260,7 @@ def front_panel(idx):
 
 # ================================================================ E6 зона выдачи
 #  Лоток-каплеуловитель: корыто 900 x 140 x 22, перфорированное дно, борт 8 мм
-#  борт лотка — верхняя плоскость бара 1050, столешница утоплена до 990.
+#  борт лотка — верхняя плоскость бара 1050, рабочая поверхность опущена до 850 (на уровень бедра).
 TRAY_WALL = 22.0                      # высота стенок корыта
 DEV22, _ = _dev(T_GR, TRAY_WALL, r=0.6)          # 19.35
 DEV12T, _ = _dev(T_GR, 12.0, r=0.6)              # 9.35 — отгиб-крюк

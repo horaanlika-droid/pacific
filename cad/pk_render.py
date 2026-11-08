@@ -139,12 +139,12 @@ def arc(cx, cy, z, r, a0, a1, n=14):
 ST = dict(
     wall_t=1.5, wall_fl=(30, 30, 40, 15),      # перед / зад / верх / низ
     block_t=1.2, blk_z=((12, 346), (349, 683), (686, 1020)),
-    top=(960, 990), tray=(1028, 1050),
+    top=(820, 850), tray=(1028, 1050),
 )
 
 
 def wall(sc, side, offx=0.0, dz=0.0, y=(0, D), z=(0, 1020)):
-    """боковая стенка: пластина + 4 отбортовки внутрь"""
+    """ступенчатая боковая стенка: передняя стойка 140×1020 + рабочая часть 460×820"""
     t = ST['wall_t']
     if side == 'L':
         x0, x1 = 0 + offx, t + offx
@@ -152,27 +152,35 @@ def wall(sc, side, offx=0.0, dz=0.0, y=(0, D), z=(0, 1020)):
     else:
         x0, x1 = W - t + offx, W + offx
         fx1 = x0 - 30
-    y0, y1 = y
-    z0, z1 = z[0] + dz, z[1] + dz
-    f, b, top, bot = 30, 30, 0, 15
-    sc.box(x0, x1, y0, y1, z0, z1, STEEL)                              # пластина
+    y0, ym, y1 = y[0], 140.0, y[1]
+    z0, zlo, zhi = z[0] + dz, 820.0 + dz, z[1] + dz
+    bot = 15
+    # монолитная L-образная пластина (без вертикального шва на y = 140)
+    sc.quad([(x0, y0, z0), (x0, y1, z0), (x0, y1, zlo),
+             (x0, ym, zlo), (x0, ym, zhi), (x0, y0, zhi)], STEEL)
+    sc.quad([(x1, y0, z0), (x1, y0, zhi), (x1, ym, zhi),
+             (x1, ym, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)
+    sc.quad([(x0, y0, z0), (x1, y0, z0), (x1, y0, zhi), (x0, y0, zhi)], STEEL)      # перед
+    sc.quad([(x0, y1, z0), (x0, y1, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)      # зад
+    sc.quad([(x0, y0, zhi), (x1, y0, zhi), (x1, ym, zhi), (x0, ym, zhi)], STEEL)    # верх стойки
+    sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, ym, zhi), (x0, ym, zhi)], STEEL)    # уступ
+    sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, y1, zlo), (x0, y1, zlo)], STEEL)    # полка 820
     if side == 'L':
-        sc.box(x1, fx1, y0, y0 + 1.2, z0, z1, STEEL)                   # перед. отбортовка
-        sc.box(x1, fx1, y1 - 1.2, y1, z0, z1, STEEL)                   # задняя
-        sc.box(x1, x0 + top, y0, y1, z1 - 1.2, z1, STEEL)              # верх
-        sc.box(x1, x0 + bot, y0, y1, z0, z0 + 1.2, STEEL)              # низ
+        sc.box(x1, fx1, y0, y0 + 1.2, z0, zhi, STEEL)                               # перед. отбортовка
+        sc.box(x1, fx1, y1 - 1.2, y1, z0, zlo, STEEL)                               # задняя
+        sc.box(x1, x0 + bot, y0, y1, z0, z0 + 1.2, STEEL)                           # низ
     else:
-        sc.box(fx1, x0, y0, y0 + 1.2, z0, z1, STEEL)
-        sc.box(fx1, x0, y1 - 1.2, y1, z0, z1, STEEL)
-        sc.box(x0 - top, x0, y0, y1, z1 - 1.2, z1, STEEL)
+        sc.box(fx1, x0, y0, y0 + 1.2, z0, zhi, STEEL)
+        sc.box(fx1, x0, y1 - 1.2, y1, z0, zlo, STEEL)
         sc.box(x0 - bot, x0, y0, y1, z0, z0 + 1.2, STEEL)
 
 
 def block(sc, z0, z1, dy=0.0, dz=0.0, face=STEEL, see_back=True):
     t = ST['block_t']
     sc.box(0, W, dy, dy + t, z0 + dz, z1 + dz, face)
-    sc.box(0, W, dy + t, dy + t + 20, z0 + dz + 1.2, z0 + dz + 1.2 + 1.2, face * 0.94)  # низ 20
-    sc.box(0, W, dy + t, dy + t + 25, z1 + dz - 1.2, z1 + dz, face * 1.02)               # верх 25
+    if see_back:
+        sc.box(0, W, dy + t, dy + t + 20, z0 + dz + 1.2, z0 + dz + 1.2 + 1.2, face * 0.94)  # низ 20
+        sc.box(0, W, dy + t, dy + t + 25, z1 + dz - 1.2, z1 + dz, face * 1.02)               # верх 25
 
 
 def top_face(sc, x0, x1, y0, y1, z, holes, base, unlit=False):
@@ -203,7 +211,6 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
     c = G.CUT_PLUMB
     rects.append((c['x'], c['x'] + c['w'], c['y'] + 110 + dy, c['y'] + c['h'] + 110 + dy))
     top_face(sc, 0, W, y0, y1, z1, rects, STEEL_WARM)
-    top_face(sc, 0, W, y0, y1, z0, rects, np.array([0.44, 0.45, 0.44]), unlit=True)
     # кромка выреза (толщина листа 30)
     edge = np.array([0.60, 0.615, 0.605])
     for (hx0, hx1, hy0, hy1) in rects:
@@ -219,11 +226,11 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
         sc.poly_at([(cx + r * np.cos(v), cy + r * np.sin(v)) for v in a], z1 + 0.4,
                    np.array([0.30, 0.31, 0.31]), edge=(0.26, 0.27, 0.27), lw=0.5)
     if show_basin:
-        basin(sc, G.CUT_SINK, dz, dy)
-        basin(sc, G.CUT_ICE, dz, dy, depth=215)
+        basin(sc, G.CUT_SINK, dz, dy, full=(dz > 0))
+        basin(sc, G.CUT_ICE, dz, dy, depth=215, full=(dz > 0))
 
 
-def basin(sc, c, dz, dy, depth=170):
+def basin(sc, c, dz, dy, depth=170, full=False):
     """углубление под вырез: тёмные внутренние грани + дно"""
     x0, x1 = c['x'], c['x'] + c['w']
     y0, y1 = c['y'] + 110 + dy, c['y'] + c['h'] + 110 + dy
@@ -233,24 +240,42 @@ def basin(sc, c, dz, dy, depth=170):
             np.array([0.37, 0.38, 0.38]), unlit=True, flat=True)                     # дно
     sc.quad([(x0, y0, zt), (x0, y1, zt), (x0, y1, zb), (x0, y0, zb)],
             np.array([0.56, 0.57, 0.57]), unlit=True, flat=True)                     # левая
-    sc.quad([(x1, y0, zt), (x1, y0, zb), (x1, y1, zb), (x1, y1, zt)],
-            np.array([0.60, 0.61, 0.61]), unlit=True, flat=True)                     # правая
-    sc.quad([(x0, y0, zt), (x0, y0, zb), (x1, y0, zb), (x1, y0, zt)],
-            np.array([0.50, 0.51, 0.51]), unlit=True, flat=True)                     # передняя
     sc.quad([(x0, y1, zt), (x1, y1, zt), (x1, y1, zb), (x0, y1, zb)],
             np.array([0.45, 0.46, 0.46]), unlit=True, flat=True)                     # задняя
+    if full:
+        sc.quad([(x1, y0, zt), (x1, y0, zb), (x1, y1, zb), (x1, y1, zt)],
+                np.array([0.60, 0.61, 0.61]), unlit=True, flat=True)                 # правая
+        sc.quad([(x0, y0, zt), (x0, y0, zb), (x1, y0, zb), (x1, y0, zt)],
+                np.array([0.50, 0.51, 0.51]), unlit=True, flat=True)                 # передняя
 
 
-def tray(sc, dz=0.0, dy=0.0, decks=True):
+def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
     """зона выдачи: приподнятый лоток на верхней плоскости бара"""
     z0, z1 = ST['tray'][0] + dz, ST['tray'][1] + dz
-    sc.box(0, W, dy, dy + 140, z0 - 8, z0, STEEL * 0.80)     # прокладка 8 на верх фасада
-    sc.box(0, W, dy, dy + 22, z0, z1, STEEL)                 # передняя стенка
-    sc.box(0, W, dy + 118, dy + 140, z0, z1, STEEL)          # задняя
-    # фартук от лотка вниз до рабочей плоскости — закрывает щель
-    sc.box(0, W, dy + 132, dy + 140, ST['top'][1] + dz - 4, z0 + 1.2, STEEL * 0.97)
+    sc.box(0, W, dy, dy + 140, z0 - 8, z0, STEEL * 0.80, skip=('top', 'bottom', 'back'))
+    sc.box(0, W, dy, dy + 22, z0, z1, STEEL, skip=('bottom', 'back', 'top'))
+    sc.box(0, W, dy + 118, dy + 140, z0, z1, STEEL, skip=('bottom', 'front', 'top'))
+    if apron:
+        sc.box(0, W, dy + 132, dy + 140, ST['top'][1] + dz - 4, z0 + 1.2,
+               STEEL * 0.97, skip=('top', 'bottom', 'front', 'back'))
     zdeck = z1 - 8
-    sc.box(0, W, dy + 22, dy + 118, z0 + 10, zdeck, STEEL)   # дно
+    nx = 9
+    for ix in range(nx):
+        xa, xb = ix * W / nx, (ix + 1) * W / nx
+        # верхние и внутренние грани бортов лотка разбиты по X (flat=True — без швов)
+        sc.quad([(xa, dy, z1), (xb, dy, z1),
+                 (xb, dy + 22, z1), (xa, dy + 22, z1)], STEEL, flat=True)
+        sc.quad([(xa, dy + 22, z1), (xb, dy + 22, z1),
+                 (xb, dy + 22, zdeck), (xa, dy + 22, zdeck)], STEEL * 0.92, flat=True)
+        sc.quad([(xa, dy + 118, z1), (xb, dy + 118, z1),
+                 (xb, dy + 140, z1), (xa, dy + 140, z1)], STEEL, flat=True)
+        sc.quad([(xa, dy + 118, zdeck), (xb, dy + 118, zdeck),
+                 (xb, dy + 118, z1), (xa, dy + 118, z1)], STEEL * 0.92, flat=True)
+        sc.quad([(xa, dy + 22, zdeck), (xb, dy + 22, zdeck),
+                 (xb, dy + 118, zdeck), (xa, dy + 118, zdeck)], STEEL, flat=True)
+        if apron:
+            sc.quad([(xa, dy + 140, ST['top'][1] + dz - 4), (xb, dy + 140, ST['top'][1] + dz - 4),
+                     (xb, dy + 140, z0 + 1.2), (xa, dy + 140, z0 + 1.2)], STEEL * 0.97, flat=True)
     if decks:
         for row in range(5):
             yy = dy + 30 + row * 18
@@ -258,8 +283,8 @@ def tray(sc, dz=0.0, dy=0.0, decks=True):
                 xx = 12 + k * 50 + (25 if row % 2 else 0)
                 if xx + 40 > W - 10:
                     continue
-                sc.quad([(xx, yy, zdeck + 0.5), (xx + 40, yy, zdeck + 0.5),
-                         (xx + 40, yy + 3, zdeck + 0.5), (xx, yy + 3, zdeck + 0.5)],
+                sc.quad([(xx, yy, zdeck + 0.8), (xx + 40, yy, zdeck + 0.8),
+                         (xx + 40, yy + 3, zdeck + 0.8), (xx, yy + 3, zdeck + 0.8)],
                         np.array([0.30, 0.31, 0.31]))
 
 
@@ -289,7 +314,7 @@ def scene_assembled(sc, dz=0.0):
     wall(sc, 'L')
     wall(sc, 'R')
     for (z0, z1) in ST['blk_z']:
-        block(sc, z0, z1)
+        block(sc, z0, z1, see_back=False)
     worktop(sc, c_=AX[0])
     tray(sc)
 
@@ -300,8 +325,8 @@ def scene_exploded(sc, e=1.0):
     wall(sc, 'R', offx=+250 * e)
     for i, (z0, z1) in enumerate(ST['blk_z']):
         block(sc, z0, z1, dy=-70 * e - i * 40 * e, dz=-330 * e)
-    worktop(sc, dz=+330 * e, c_=AX[1])
-    tray(sc, dz=+300 * e, dy=-120 * e)
+    worktop(sc, dz=+260 * e, c_=AX[1])
+    tray(sc, dz=+380 * e, dy=-140 * e, apron=False)
 
 
 def scene_bag(sc, ax, dz=0.0):
@@ -384,9 +409,9 @@ def leader3d(ax, x, y, z, x2, y2, z2, color='#8a8a86', lw=0.7):
 
 def labels_exploded(ax):
     """номера деталей на взрыв-схеме (1…7; чехол — на панели 3)"""
-    marks = [((-330, 300, 760), '1'), ((1235, 300, 760), '2'),
+    marks = [((-330, 300, 680), '1'), ((1235, 300, 680), '2'),
              ((-105, -85, -150), '3'), ((-105, -145, 190), '4'), ((-105, -185, 520), '5'),
-             ((450, -195, 1395), '6'), ((450, 665, 1370), '7')]
+             ((220, -220, 1520), '6'), ((780, 640, 1180), '7')]
     for (p, t) in marks:
         label3d(ax, *p, t, size=10.5)
 
@@ -420,7 +445,7 @@ def main():
     panels = [(0.016, 0.070, 0.320, 0.735), (0.334, 0.070, 0.320, 0.735),
               (0.652, 0.070, 0.322, 0.735)]
     titles = ['1 · В СБОРЕ', '2 · В РАЗБОРЕ', '3 · В ЧЕХЛЕ']
-    subs = ['лоток выдачи на верхней плоскости · рабочая поверхность утоплена на 60 мм',
+    subs = ['борт выдачи 1050 мм · рабочая часть опущена на высоту бедра (850 мм)',
             'детали разнесены по осям сборки · нумерация по спецификации',
             'плоский чехол-сумка 1180 × 720 × 145 · укладка «сэндвичем»']
 
@@ -434,7 +459,7 @@ def main():
     sc.draw(ax1)
     faucet(sc, ax1)
     rinsser(sc, ax1)
-    frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=27, azim=-64)
+    frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=35, azim=-58)
 
     # ---------- панель 2
     ax2 = fig.add_axes(panels[1], projection='3d', computed_zorder=False)
