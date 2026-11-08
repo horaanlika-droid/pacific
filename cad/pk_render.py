@@ -155,19 +155,26 @@ def wall(sc, side, offx=0.0, dz=0.0, y=(0, D), z=(0, 1020)):
     y0, ym, y1 = y[0], 140.0, y[1]
     z0, zlo, zhi = z[0] + dz, 820.0 + dz, z[1] + dz
     bot = 15
-    # монолитная L-образная пластина (без вертикального шва на y = 140)
-    sc.quad([(x0, y0, z0), (x0, y1, z0), (x0, y1, zlo),
-             (x0, ym, zlo), (x0, ym, zhi), (x0, y0, zhi)], STEEL)
-    sc.quad([(x1, y0, z0), (x1, y0, zhi), (x1, ym, zhi),
-             (x1, ym, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)
-    sc.quad([(x0, y0, z0), (x1, y0, z0), (x1, y0, zhi), (x0, y0, zhi)], STEEL)      # перед
-    sc.quad([(x0, y1, z0), (x0, y1, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)      # зад
-    sc.quad([(x0, y0, zhi), (x1, y0, zhi), (x1, ym, zhi), (x0, ym, zhi)], STEEL)    # верх стойки
-    sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, ym, zhi), (x0, ym, zhi)], STEEL)    # уступ
-    sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, y1, zlo), (x0, y1, zlo)], STEEL)    # полка 820
+    # монолитная L-образная пластина (в сборе задняя часть левой стенки скрыта под столешницей)
+    if side == 'L' and offx == 0:
+        sc.quad([(x0, y0, z0), (x0, ym, z0), (x0, ym, zhi), (x0, y0, zhi)], STEEL)
+        sc.quad([(x1, y0, z0), (x1, y0, zhi), (x1, ym, zhi), (x1, ym, z0)], STEEL)
+        sc.quad([(x0, y0, z0), (x1, y0, z0), (x1, y0, zhi), (x0, y0, zhi)], STEEL)
+        sc.quad([(x0, y0, zhi), (x1, y0, zhi), (x1, ym, zhi), (x0, ym, zhi)], STEEL)
+    else:
+        sc.quad([(x0, y0, z0), (x0, y1, z0), (x0, y1, zlo),
+                 (x0, ym, zlo), (x0, ym, zhi), (x0, y0, zhi)], STEEL)
+        sc.quad([(x1, y0, z0), (x1, y0, zhi), (x1, ym, zhi),
+                 (x1, ym, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)
+        sc.quad([(x0, y0, z0), (x1, y0, z0), (x1, y0, zhi), (x0, y0, zhi)], STEEL)  # перед
+        sc.quad([(x0, y1, z0), (x0, y1, zlo), (x1, y1, zlo), (x1, y1, z0)], STEEL)  # зад
+        sc.quad([(x0, y0, zhi), (x1, y0, zhi), (x1, ym, zhi), (x0, ym, zhi)], STEEL)# верх стойки
+        sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, ym, zhi), (x0, ym, zhi)], STEEL)# уступ
+        sc.quad([(x0, ym, zlo), (x1, ym, zlo), (x1, y1, zlo), (x0, y1, zlo)], STEEL)# полка 820
     if side == 'L':
-        sc.box(x1, fx1, y0, y0 + 1.2, z0, zhi, STEEL)                               # перед. отбортовка
-        sc.box(x1, fx1, y1 - 1.2, y1, z0, zlo, STEEL)                               # задняя
+        if offx != 0:
+            sc.box(x1, fx1, y0, y0 + 1.2, z0, zhi, STEEL)                           # перед. отбортовка
+            sc.box(x1, fx1, y1 - 1.2, y1, z0, zlo, STEEL)                           # задняя
         sc.box(x1, x0 + bot, y0, y1, z0, z0 + 1.2, STEEL)                           # низ
     else:
         sc.box(fx1, x0, y0, y0 + 1.2, z0, zhi, STEEL)
@@ -197,43 +204,79 @@ def top_face(sc, x0, x1, y0, y1, z, holes, base, unlit=False):
                     base, flat=True, unlit=unlit)
 
 
+def _circle_cell(sc, cx, cy, r, z, base):
+    """квадратная ячейка 2r x 2r с истинным круглым вырезом — без z-конфликтов"""
+    n = 24
+    ang = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    pts = [(cx + r * np.cos(a), cy + r * np.sin(a)) for a in ang]
+    corners = [(cx + r, cy + r), (cx - r, cy + r), (cx - r, cy - r), (cx + r, cy - r)]
+    for q in range(4):
+        kx, ky = corners[q]
+        kx_prev, ky_prev = corners[q - 1]
+        i0 = q * (n // 4)
+        p0 = pts[i0]
+        sc.quad([(kx_prev, ky_prev, z), (kx, ky, z), (p0[0], p0[1], z)], base, flat=True)
+        for i in range(n // 4):
+            p1 = pts[i0 + i]
+            p2 = pts[(i0 + i + 1) % n]
+            sc.quad([(kx, ky, z), (p2[0], p2[1], z), (p1[0], p1[1], z)],
+                    base, flat=True)
+    sc.poly_at(pts, z, np.array([0.30, 0.31, 0.31]), edge=(0.26, 0.27, 0.27), lw=0.5)
+
+
 def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
     z0, z1 = ST['top'][0] + dz, ST['top'][1] + dz
-    y0, y1 = 140 + dy, D + dy
-    sc.box(0, W, y0, y1, z0, z1, STEEL_WARM, skip=('top', 'bottom'))
+    y0, y1 = G.DRIP_D + dy, D + dy
+    # видимые снаружи вертикальные отбортовки столешницы (разбиты по X для точной z-сортировки)
+    nx = 9
+    for ix in range(nx):
+        xa, xb = ix * W / nx, (ix + 1) * W / nx
+        sc.quad([(xa, y0, z0), (xb, y0, z0), (xb, y0, z1), (xa, y0, z1)],
+                STEEL_WARM, flat=True)
+    sc.quad([(W, y0, z0), (W, y1, z0), (W, y1, z1), (W, y0, z1)], STEEL_WARM)
     if not show_holes:
         sc.quad([(0, y0, z1), (W, y0, z1), (W, y1, z1), (0, y1, z1)], STEEL_WARM)
         return
+    ty = G.TOPY + dy
     rects = []
-    for key in ('CUT_SINK', 'CUT_ICE'):
-        c = getattr(G, key)
-        rects.append((c['x'], c['x'] + c['w'], c['y'] + 110 + dy, c['y'] + c['h'] + 110 + dy))
-    c = G.CUT_PLUMB
-    rects.append((c['x'], c['x'] + c['w'], c['y'] + 110 + dy, c['y'] + c['h'] + 110 + dy))
-    top_face(sc, 0, W, y0, y1, z1, rects, STEEL_WARM)
-    # кромка выреза (толщина листа 30)
-    edge = np.array([0.60, 0.615, 0.605])
-    for (hx0, hx1, hy0, hy1) in rects:
-        sc.quad([(hx0, hy0, z1), (hx0, hy0, z0), (hx1, hy0, z0), (hx1, hy0, z1)], edge)      # перед
-        sc.quad([(hx0, hy1, z1), (hx1, hy1, z1), (hx1, hy1, z0), (hx0, hy1, z0)], edge)      # зад
-        sc.quad([(hx0, hy0, z1), (hx0, hy1, z1), (hx0, hy1, z0), (hx0, hy0, z0)], edge)      # лево
-        sc.quad([(hx1, hy0, z1), (hx1, hy1, z1), (hx1, hy1, z0), (hx1, hy0, z0)], edge)      # право
-    # круги — тёмные пятна на поверхности
+    for c in (*G.CUT_GNS, *G.CUT_SINKS, G.CUT_PLUMB):
+        rects.append((c['x'], c['x'] + c['w'], c['y'] + ty, c['y'] + c['h'] + ty))
+    circs = []
     for key in ('CUT_TAP', 'CUT_RINSE', 'CUT_CABLE'):
         c = getattr(G, key)
-        cx, cy, r = c['cx'], c['cy'] + 110 + dy, c['d'] / 2
-        a = np.linspace(0, 2 * np.pi, 24)
-        sc.poly_at([(cx + r * np.cos(v), cy + r * np.sin(v)) for v in a], z1 + 0.4,
-                   np.array([0.30, 0.31, 0.31]), edge=(0.26, 0.27, 0.27), lw=0.5)
+        cx, cy, r = c['cx'], c['cy'] + ty, c['d'] / 2
+        circs.append((cx, cy, r))
+    all_holes = rects + [(cx - r, cx + r, cy - r, cy + r) for (cx, cy, r) in circs]
+    top_face(sc, 0, W, y0, y1, z1, all_holes, STEEL_WARM)
+    if dz > 0:
+        ax_ring(c_, [(0, y0), (W, y0), (W, y1), (0, y1)], z1, color=(0.42, 0.43, 0.42), lw=0.55)
+        ax_ring(c_, [(0, y0), (W, y0)], z0, color=(0.42, 0.43, 0.42), lw=0.45)
+    elif c_ is not None:
+        # видимый контур столешницы сзади и слева (не перекрывается лотком E6)
+        c_.plot([0, 0, W], [326, y1, y1], [z1, z1, z1],
+                color=(0.42, 0.43, 0.42), lw=0.55, zorder=25, solid_joinstyle='round')
+    # видимые внутренние кромки выреза (толщина отбортовки 30: задняя и левая грани)
+    edge = np.array([0.60, 0.615, 0.605])
+    for (hx0, hx1, hy0, hy1) in rects:
+        sc.quad([(hx0, hy1, z1), (hx1, hy1, z1), (hx1, hy1, z0), (hx0, hy1, z0)], edge)      # зад
+        sc.quad([(hx0, hy0, z1), (hx0, hy1, z1), (hx0, hy1, z0), (hx0, hy0, z0)], edge)      # лево
+        if dz > 0:
+            ax_ring(c_, [(hx0, hy0), (hx1, hy0), (hx1, hy1), (hx0, hy1)], z1,
+                    color=(0.38, 0.39, 0.38), lw=0.55)
+    for (cx, cy, r) in circs:
+        _circle_cell(sc, cx, cy, r, z1, STEEL_WARM)
     if show_basin:
-        basin(sc, G.CUT_SINK, dz, dy, full=(dz > 0))
-        basin(sc, G.CUT_ICE, dz, dy, depth=215, full=(dz > 0))
+        # 4 небольших отсека под гастроёмкости GN 1/9 (глубина 65 ниже отбортовки = GN 1/9-100)
+        for g in G.CUT_GNS:
+            basin(sc, g, dz, dy, depth=65, full=(dz > 0))
+        # одна раковина, поделённая пополам (две секции в общем корпусе)
+        divided_sink(sc, G.CUT_SINK_L, G.CUT_SINK_R, dz, dy, depth=185, full=(dz > 0))
 
 
 def basin(sc, c, dz, dy, depth=170, full=False):
     """углубление под вырез: тёмные внутренние грани + дно"""
     x0, x1 = c['x'], c['x'] + c['w']
-    y0, y1 = c['y'] + 110 + dy, c['y'] + c['h'] + 110 + dy
+    y0, y1 = c['y'] + G.TOPY + dy, c['y'] + c['h'] + G.TOPY + dy
     zt = ST['top'][1] + dz - 30
     zb = zt - depth
     sc.quad([(x0, y0, zb), (x1, y0, zb), (x1, y1, zb), (x0, y1, zb)],
@@ -247,6 +290,28 @@ def basin(sc, c, dz, dy, depth=170, full=False):
                 np.array([0.60, 0.61, 0.61]), unlit=True, flat=True)                 # правая
         sc.quad([(x0, y0, zt), (x0, y0, zb), (x1, y0, zb), (x1, y0, zt)],
                 np.array([0.50, 0.51, 0.51]), unlit=True, flat=True)                 # передняя
+
+
+def divided_sink(sc, cl, cr, dz, dy, depth=185, full=False):
+    """двухсекционная раковина: единый внешний корпус, внутри поделена пополам"""
+    for s in (cl, cr):
+        basin(sc, s, dz, dy, depth=depth, full=False)
+    if full:
+        xl0 = cl['x']
+        xr1 = cr['x'] + cr['w']
+        xm = (cl['x'] + cl['w'] + cr['x']) / 2.0
+        y0 = cl['y'] + G.TOPY + dy
+        y1 = y0 + cl['h']
+        zt = ST['top'][1] + dz - 30
+        zb = zt - depth
+        # правая внешняя стенка общего корпуса
+        sc.quad([(xr1, y0, zt), (xr1, y0, zb), (xr1, y1, zb), (xr1, y1, zt - 40)],
+                np.array([0.60, 0.61, 0.61]), edge=(0.40, 0.41, 0.41), unlit=True)
+        # передняя внешняя стенка из двух половин со швом перегородки посередине
+        sc.quad([(xl0, y0, zt), (xl0, y0, zb), (xm, y0, zb), (xm, y0, zt)],
+                np.array([0.50, 0.51, 0.51]), edge=(0.36, 0.37, 0.37), unlit=True)
+        sc.quad([(xm, y0, zt), (xm, y0, zb), (xr1, y0, zb), (xr1, y0, zt)],
+                np.array([0.50, 0.51, 0.51]), edge=(0.36, 0.37, 0.37), unlit=True)
 
 
 def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
@@ -273,9 +338,6 @@ def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
                  (xb, dy + 118, z1), (xa, dy + 118, z1)], STEEL * 0.92, flat=True)
         sc.quad([(xa, dy + 22, zdeck), (xb, dy + 22, zdeck),
                  (xb, dy + 118, zdeck), (xa, dy + 118, zdeck)], STEEL, flat=True)
-        if apron:
-            sc.quad([(xa, dy + 140, ST['top'][1] + dz - 4), (xb, dy + 140, ST['top'][1] + dz - 4),
-                     (xb, dy + 140, z0 + 1.2), (xa, dy + 140, z0 + 1.2)], STEEL * 0.97, flat=True)
     if decks:
         for row in range(5):
             yy = dy + 30 + row * 18
@@ -290,7 +352,7 @@ def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
 
 def faucet(sc, ax, dz=0.0, dy=0.0):
     cx = G.CUT_TAP['cx']
-    cy = G.CUT_TAP['cy'] + 110 + dy
+    cy = G.CUT_TAP['cy'] + G.TOPY + dy
     zb = ST['top'][1] + dz
     pts = [(cx, cy, zb), (cx, cy, zb + 90)]
     pts += [(cx, cy - 10, zb + 118), (cx, cy - 55, zb + 132), (cx, cy - 112, zb + 120),
@@ -303,7 +365,7 @@ def faucet(sc, ax, dz=0.0, dy=0.0):
 
 
 def rinsser(sc, ax, dz=0.0, dy=0.0):
-    cx, cy = G.CUT_RINSE['cx'], G.CUT_RINSE['cy'] + 110 + dy
+    cx, cy = G.CUT_RINSE['cx'], G.CUT_RINSE['cy'] + G.TOPY + dy
     zb = ST['top'][1] + dz
     tube(ax, [(cx, cy, zb), (cx, cy, zb + 55), (cx + 4, cy - 26, zb + 92),
               (cx + 4, cy - 52, zb + 40)], lw=2.6, color=(0.42, 0.43, 0.42))
@@ -459,7 +521,7 @@ def main():
     sc.draw(ax1)
     faucet(sc, ax1)
     rinsser(sc, ax1)
-    frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=35, azim=-58)
+    frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=43, azim=-56)
 
     # ---------- панель 2
     ax2 = fig.add_axes(panels[1], projection='3d', computed_zorder=False)

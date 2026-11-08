@@ -147,7 +147,7 @@ def _poly_area(p):
 SW = DEV30 + SIDE_DEPTH + DEV30          # 653.5
 SH = DEV15 + SIDE_TOP + DEV40            # 1069.7
 PL_X = DEV30                              # 27.35 — левая кромка пластины в развёртке
-TOPY = 140.0 - DEV30                      # 112,65 — сдвиг вырезов E7 в станции по Y
+TOPY = DRIP_D                             # 140.0 — сдвиг вырезов E7 в станции по Y
 PL_Y = DEV15                              # 12.35
 STEP_X = PL_X + (DRIP_D - T_FR)           # 166.15 — граница уступа 1020 -> 820
 
@@ -313,12 +313,20 @@ TW_FLAT = W + 2 * DEV30                  # 954.7
 TH_FLAT = TOP_D + 2 * DEV30              # 514.7
 
 # вырезы в координатах сборки (x от левого торца, y от передней кромки столешницы)
-CUT_SINK = dict(x=55, y=45, w=360, h=300, r=15)
-CUT_ICE = dict(x=435, y=45, w=320, h=280, r=15)
-CUT_TAP = dict(cx=235, cy=390, d=35)
+# слева — 4 отсека под небольшие гастроёмкости GN 1/9 (176 x 108, вырез 90 x 160 R8, шаг 108)
+GN_X0, GN_Y0, GN_W, GN_H, GN_R, GN_STEP, GN_N = 48, 55, 90, 160, 8, 108, 4
+CUT_GNS = [dict(x=GN_X0 + i * GN_STEP, y=GN_Y0, w=GN_W, h=GN_H, r=GN_R)
+           for i in range(GN_N)]
+
+# справа — одна раковина 320 x 290, поделённая пополам (2 секции 150 x 290 R12, перемычка 20)
+CUT_SINK_L = dict(x=480, y=55, w=150, h=290, r=12)
+CUT_SINK_R = dict(x=650, y=55, w=150, h=290, r=12)
+CUT_SINKS = [CUT_SINK_L, CUT_SINK_R]
+
+CUT_TAP = dict(cx=640, cy=390, d=35)
 CUT_RINSE = dict(cx=845, cy=110, d=60)
-CUT_CABLE = dict(cx=442, cy=415, d=50)
-CUT_PLUMB = dict(x=100, y=405, w=120, h=40, r=20)
+CUT_CABLE = dict(cx=435, cy=415, d=50)
+CUT_PLUMB = dict(x=680, y=405, w=120, h=40, r=20)
 
 
 def _f(x, y):
@@ -329,12 +337,14 @@ def _f(x, y):
 def worktop():
     outline = cross_outline(0, 0, W, TOP_D, DEV30, DEV30, DEV30, DEV30)
     cuts, bends = [], []
-    x, y = _f(CUT_SINK['x'], CUT_SINK['y'])
-    cuts.append(dict(type='poly', name='Раковина 360x300 R15',
-                     pts=rrect_pts(x, y, CUT_SINK['w'], CUT_SINK['h'], CUT_SINK['r'], 6)))
-    x, y = _f(CUT_ICE['x'], CUT_ICE['y'])
-    cuts.append(dict(type='poly', name='Ледник 320x280 R15',
-                     pts=rrect_pts(x, y, CUT_ICE['w'], CUT_ICE['h'], CUT_ICE['r'], 6)))
+    for i, g in enumerate(CUT_GNS, 1):
+        x, y = _f(g['x'], g['y'])
+        cuts.append(dict(type='poly', name='Отсек GN 1/9 #%d 90x160 R8' % i,
+                         pts=rrect_pts(x, y, g['w'], g['h'], g['r'], 6)))
+    for i, s in enumerate(CUT_SINKS, 1):
+        x, y = _f(s['x'], s['y'])
+        cuts.append(dict(type='poly', name='Раковина секция %d 150x290 R12' % i,
+                         pts=rrect_pts(x, y, s['w'], s['h'], s['r'], 6)))
     x, y = _f(CUT_TAP['cx'], CUT_TAP['cy'])
     cuts.append(dict(type='circle', name='Смеситель Ø35', cx=x, cy=y, r=CUT_TAP['d'] / 2))
     x, y = _f(CUT_RINSE['cx'], CUT_RINSE['cy'])
@@ -363,7 +373,7 @@ def worktop():
         dict(p1=(DEV30 + W, DEV30), p2=(DEV30 + W, DEV30 + TOP_D), ang=90, note='правая отбортовка 30'),
     ]
     notes = ['Обеспечить плоскостность ±0,8 мм на 900 — рабочая поверхность.',
-             'Кромки вырезов под раковину/ледник — шлифовка R1,5, без заусенца (HACCP).',
+             'Кромки вырезов под гастроёмкости GN 1/9 и двухсекционную раковину — шлифовка R1,5, без заусенца (HACCP).',
              '4 паза 24x12 — кулачковые замки; 2 отв. Ø9 — штифты.']
     p = Part('E7', 'Рабочая зона: столешница с вырезами', 'AISI 304, шлиф. Scotch-Brite', T, 1,
              TW_FLAT, TH_FLAT, outline, cuts, bends, notes)
