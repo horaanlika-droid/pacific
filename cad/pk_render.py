@@ -241,11 +241,7 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
     rects = []
     for c in (*G.CUT_GNS, *G.CUT_SINKS):
         rects.append((c['x'], c['x'] + c['w'], c['y'] + ty, c['y'] + c['h'] + ty))
-    circs = []
-    for key in ('CUT_TAP',):
-        c = getattr(G, key)
-        cx, cy, r = c['cx'], c['cy'] + ty, c['d'] / 2
-        circs.append((cx, cy, r))
+    circs = []   # кран убран из проекта: круглых вырезов нет
     all_holes = rects + [(cx - r, cx + r, cy - r, cy + r) for (cx, cy, r) in circs]
     top_face(sc, 0, W, y0, y1, z1, all_holes, STEEL_WARM)
     if dz > 0:
@@ -263,8 +259,6 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
         if dz > 0:
             ax_ring(c_, [(hx0, hy0), (hx1, hy0), (hx1, hy1), (hx0, hy1)], z1,
                     color=(0.38, 0.39, 0.38), lw=0.55)
-    for (cx, cy, r) in circs:
-        _circle_cell(sc, cx, cy, r, z1, STEEL_WARM)
     if show_basin:
         # 4 небольших отсека под гастроёмкости GN 1/9 (глубина 65 ниже отбортовки = GN 1/9-100)
         for g in G.CUT_GNS:
@@ -354,18 +348,15 @@ def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
             sc.quad(poly, np.array([0.22, 0.23, 0.23]), flat=True)
 
 
-def faucet(sc, ax, dz=0.0, dy=0.0):
-    cx = G.CUT_TAP['cx']
-    cy = G.CUT_TAP['cy'] + G.TOPY + dy
-    zb = ST['top'][1] + dz
-    pts = [(cx, cy, zb), (cx, cy, zb + 90)]
-    pts += [(cx, cy - 10, zb + 118), (cx, cy - 55, zb + 132), (cx, cy - 112, zb + 120),
-            (cx, cy - 128, zb + 96), (cx, cy - 128, zb + 78)]
-    tube(ax, pts, lw=3.0, color=(0.42, 0.43, 0.42))
-    ax.add_collection3d(Poly3DCollection(
-        [[(cx - 24, cy - 12, zb + 0.8), (cx + 24, cy - 12, zb + 0.8),
-          (cx + 24, cy + 12, zb + 0.8), (cx - 24, cy + 12, zb + 0.8)]],
-        facecolors=[(0.55, 0.56, 0.55, 1)], edgecolors='none', zsort='max'))
+def partition(sc, dx=0.0, dy=0.0, dz=0.0):
+    """внутренняя перегородка E9: стенка 540 x 845 + полка 25 сверху и полка 20 на пол"""
+    t = 1.5
+    x = G.SEP_X + dx
+    y0, y1 = G.SEP_Y0 + dy, G.SEP_Y1 + dy
+    z0, z1 = dz, G.SEP_TOP + dz
+    sc.box(x - t / 2, x + t / 2, y0, y1, z0, z1, STEEL)                 # стенка
+    sc.box(x - G.SEP_FL_TOP, x + t / 2, y0, y1, z1, z1 + t, STEEL)     # полка под столешницу
+    sc.box(x - t / 2, x + G.SEP_FL_BOT, y0, y1, z0, z0 + t, STEEL)     # полка на пол
 
 
 
@@ -387,6 +378,7 @@ def scene_exploded(sc, e=1.0):
         block(sc, z0, z1, dy=-70 * e - i * 40 * e, dz=-330 * e)
     worktop(sc, dz=+260 * e, c_=AX[1])
     tray(sc, dz=+380 * e, dy=-140 * e, apron=False)
+    partition(sc, dx=+300 * e, dy=-150 * e, dz=-120 * e)
 
 
 def scene_bag(sc, ax, dz=0.0):
@@ -468,10 +460,10 @@ def leader3d(ax, x, y, z, x2, y2, z2, color='#8a8a86', lw=0.7):
 
 
 def labels_exploded(ax):
-    """номера деталей на взрыв-схеме (1…7; чехол — на панели 3)"""
+    """номера деталей на взрыв-схеме (1…8; чехол — на панели 3)"""
     marks = [((-330, 300, 680), '1'), ((1235, 300, 680), '2'),
              ((-105, -85, -150), '3'), ((-105, -145, 190), '4'), ((-105, -185, 520), '5'),
-             ((220, -220, 1520), '6'), ((780, 640, 1180), '7')]
+             ((220, -220, 1520), '6'), ((780, 640, 1180), '7'), ((960, -320, 620), '8')]
     for (p, t) in marks:
         label3d(ax, *p, t, size=10.5)
 
@@ -494,12 +486,12 @@ def main():
     fp_bold = findfont(FontProperties(family='DejaVu Sans', weight='bold'))
     fig.text(0.030, 0.945, 'ПАСИФИК ТУРБО', fontsize=27, fontweight='bold', color='#1e1f22')
     fig.text(0.030, 0.903, 'PACIFIC TURBO · PK-900', fontsize=10.5, color='#6a6a66')
-    fig.text(0.030, 0.870, 'разборная барная станция · 900 × 600 × 1050 мм · 8 элементов · '
+    fig.text(0.030, 0.870, 'разборная барная станция · 900 × 600 × 1050 мм · 9 элементов · '
                           'сборка без инструмента', fontsize=10.5, color='#4a4a48')
     fig.text(0.972, 0.945, 'визуализация', fontsize=12, color='#6a6a66', ha='right')
     fig.text(0.972, 0.913, 'в сборе · в разборе · в чехле', fontsize=10.5, color='#6a6a66',
              ha='right')
-    fig.text(0.972, 0.885, 'рев. B · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
+    fig.text(0.972, 0.885, 'рев. C · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
     fig.add_artist(plt.Line2D([0.030, 0.972], [0.858, 0.858], color='#1e1f22', lw=1.2))
 
     panels = [(0.016, 0.070, 0.320, 0.735), (0.334, 0.070, 0.320, 0.735),
@@ -517,7 +509,6 @@ def main():
     shadow(ax1, 0, W, 0, D, k=1.0)
     scene_assembled(sc)
     sc.draw(ax1)
-    faucet(sc, ax1)
     frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=43, azim=-56)
 
     # ---------- панель 2
