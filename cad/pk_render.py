@@ -137,7 +137,7 @@ def arc(cx, cy, z, r, a0, a1, n=14):
 
 # ---------------------------------------------------------------- станция
 ST = dict(
-    wall_t=1.5, wall_fl=(30, 30, 40, 15),      # перед / зад / верх / низ
+    wall_t=1.2, wall_fl=(30, 30, 40, 15),      # перед / зад / верх / низ
     block_t=1.2, blk_z=((12, 346), (349, 683), (686, 1020)),
     top=(820, 850), tray=(1028, 1050),
 )
@@ -486,20 +486,18 @@ def main():
     fp_bold = findfont(FontProperties(family='DejaVu Sans', weight='bold'))
     fig.text(0.030, 0.945, 'ПАСИФИК ТУРБО', fontsize=27, fontweight='bold', color='#1e1f22')
     fig.text(0.030, 0.903, 'PACIFIC TURBO · PK-900', fontsize=10.5, color='#6a6a66')
-    fig.text(0.030, 0.870, 'разборная барная станция · 900 × 600 × 1050 мм · 9 элементов · '
+    fig.text(0.030, 0.870, 'разборная барная станция · 900 × 600 × 1050 мм · 8 элементов · '
                           'сборка без инструмента', fontsize=10.5, color='#4a4a48')
     fig.text(0.972, 0.945, 'визуализация', fontsize=12, color='#6a6a66', ha='right')
-    fig.text(0.972, 0.913, 'в сборе · в разборе · в чехле', fontsize=10.5, color='#6a6a66',
+    fig.text(0.972, 0.913, 'в сборе · в разборе', fontsize=10.5, color='#6a6a66',
              ha='right')
-    fig.text(0.972, 0.885, 'рев. C · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
+    fig.text(0.972, 0.885, 'рев. D · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
     fig.add_artist(plt.Line2D([0.030, 0.972], [0.858, 0.858], color='#1e1f22', lw=1.2))
 
-    panels = [(0.016, 0.070, 0.320, 0.735), (0.334, 0.070, 0.320, 0.735),
-              (0.652, 0.070, 0.322, 0.735)]
-    titles = ['1 · В СБОРЕ', '2 · В РАЗБОРЕ', '3 · В ЧЕХЛЕ']
+    panels = [(0.016, 0.070, 0.470, 0.735), (0.514, 0.070, 0.470, 0.735)]
+    titles = ['1 · В СБОРЕ', '2 · В РАЗБОРЕ']
     subs = ['борт выдачи 1050 мм · рабочая часть опущена на высоту бедра (850 мм)',
-            'детали разнесены по осям сборки · нумерация по спецификации',
-            'плоский чехол-сумка 1180 × 720 × 145 · укладка «сэндвичем»']
+            'детали разнесены по осям сборки · нумерация по спецификации']
 
     # ---------- панель 1
     ax1 = fig.add_axes(panels[0], projection='3d', computed_zorder=False)
@@ -522,17 +520,6 @@ def main():
     frame(ax2, -600, 1500, -640, 1000, -420, 1420, elev=17, azim=-63)
     labels_exploded(ax2)
 
-    # ---------- панель 3
-    ax3 = fig.add_axes(panels[2], projection='3d', computed_zorder=False)
-    AX[2] = ax3
-    sc = Scene()
-    floor(ax3, x0=-420, x1=1560, y0=-460, y1=980)
-    shadow(ax3, -140, 1040, -60, 660, k=1.4)
-    dims = scene_bag(sc, ax3)
-    sc.draw(ax3)
-    wheels(sc, ax3, dims['x0'], dims['x1'], dims['y0'])
-    frame(ax3, -280, 1360, -400, 780, -20, 520, elev=33, azim=-56)
-
     # ---------- подписи
     for i, (p, t, s) in enumerate(zip(panels, titles, subs)):
         fig.text(p[0] + 0.008, p[1] + p[3] + 0.024, t, fontsize=13, fontweight='bold',
@@ -546,7 +533,7 @@ def main():
 
     fig.savefig(OUT, facecolor=fig.get_facecolor(), bbox_inches=None)
     print('ok', OUT)
-    return ax1, ax2, ax3
+    return ax1, ax2
 
 
 if __name__ == '__main__':
