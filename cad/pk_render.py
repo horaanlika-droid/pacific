@@ -139,7 +139,7 @@ def arc(cx, cy, z, r, a0, a1, n=14):
 ST = dict(
     wall_t=1.5, wall_fl=(30, 30, 40, 15),      # перед / зад / верх / низ
     block_t=1.2, blk_z=((12, 346), (349, 683), (686, 1020)),
-    top=(960, 990), tray=(1020, 1050),
+    top=(960, 990), tray=(1028, 1050),
 )
 
 
@@ -244,6 +244,7 @@ def basin(sc, c, dz, dy, depth=170):
 def tray(sc, dz=0.0, dy=0.0, decks=True):
     """зона выдачи: приподнятый лоток на верхней плоскости бара"""
     z0, z1 = ST['tray'][0] + dz, ST['tray'][1] + dz
+    sc.box(0, W, dy, dy + 140, z0 - 8, z0, STEEL * 0.80)     # прокладка 8 на верх фасада
     sc.box(0, W, dy, dy + 22, z0, z1, STEEL)                 # передняя стенка
     sc.box(0, W, dy + 118, dy + 140, z0, z1, STEEL)          # задняя
     # фартук от лотка вниз до рабочей плоскости — закрывает щель
@@ -413,7 +414,7 @@ def main():
     fig.text(0.972, 0.945, 'визуализация', fontsize=12, color='#6a6a66', ha='right')
     fig.text(0.972, 0.913, 'в сборе · в разборе · в чехле', fontsize=10.5, color='#6a6a66',
              ha='right')
-    fig.text(0.972, 0.885, 'рев. A · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
+    fig.text(0.972, 0.885, 'рев. B · 08.11.2026', fontsize=9, color='#8a8a86', ha='right')
     fig.add_artist(plt.Line2D([0.030, 0.972], [0.858, 0.858], color='#1e1f22', lw=1.2))
 
     panels = [(0.016, 0.070, 0.320, 0.735), (0.334, 0.070, 0.320, 0.735),
