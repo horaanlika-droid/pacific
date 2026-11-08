@@ -176,11 +176,8 @@ def side_wall(mirror=False):
         cy = PL_Y + z
         cuts.append(dict(type='circle', cx=13.5, cy=cy, r=6.5))
         cuts.append(dict(type='poly', pts=obround_pts(13.5, cy + 13.0, 9.0, 13.0 + 12.0)))
-    # пазы и штифты в опорной полке рабочей зоны (отм. 820) под столешницу
-    for x in (200.0, 500.0):
-        cuts.append(dict(type='poly', pts=obround_pts(PL_X + x, y_lo + DEV40 / 2, 26, 11)))
-    for x in (310.0, 560.0):
-        cuts.append(dict(type='circle', cx=PL_X + x, cy=y_lo + DEV40 / 2, r=4.5))
+    # Опорная полка рабочей зоны — без крепёжных отверстий; столешница садится
+    # в направляющий зазор и фиксируется геометрией загнутых кромок.
     # вентиляционные просечки в задней отбортовке (3 шт., в пределах высоты 820)
     for z in (220.0, 410.0, 600.0):
         cuts.append(dict(type='poly', pts=obround_pts(x_r + DEV30 / 2,
@@ -207,7 +204,7 @@ def side_wall(mirror=False):
                  for b in bends]
     notes = ['Отбортовки — внутрь станции.',
              'Ступенчатый профиль: передняя стойка 1020 мм (под выдачу 1050), рабочая зона 820 мм (под столешницу 850).',
-             'Пазы 26x11 и отверстия Ø9 в полке 820 — под кулачковые замки и штифты столешницы.']
+             'Рабочая полка 820 мм — цельный опорный фланец; крепёжные отверстия не предусмотрены.']
     p = Part('E1' if not mirror else 'E2',
              'Стенка боковая левая' if not mirror else 'Стенка боковая правая',
              'AISI 304, шлиф. Scotch-Brite', T, 1, SW, SH, outline, cuts, bends, notes)
@@ -270,14 +267,66 @@ TRAY_Y_TOP1 = TRAY_Y_TOP0 + DRIP_D               # 168.7
 TRAY_RIM = 1042.0                                # верх стенок
 TRAY_BOT = 1020.0                                # дно (перфорация)
 
-# перфорация: 5 рядов пазов 40 x 3, шаг 27 по глубине, 46 по ширине, смещение через ряд
+# Перфорация 40 x 3 с центральным негативным логотипом «ПАСИФИК ТУРБО».
+# Наклонная скорописная надпись дополнена тремя скоростными штрихами.
+SPORT_GLYPHS = {
+    'П': ('11111','10001','10001','10001','10001','10001','10001'),
+    'А': ('01110','10001','10001','11111','10001','10001','10001'),
+    'С': ('01111','10000','10000','10000','10000','10000','01111'),
+    'И': ('10001','10011','10101','10101','11001','10001','10001'),
+    'Ф': ('00100','11111','10101','10101','11111','00100','00100'),
+    'К': ('10001','10010','10100','11000','10100','10010','10001'),
+    'Т': ('11111','00100','00100','00100','00100','00100','00100'),
+    'У': ('10001','10001','01010','00100','00100','01000','10000'),
+    'Р': ('11110','10001','10001','11110','10100','10010','10001'),
+    'Б': ('11111','10000','10000','11110','10001','10001','11110'),
+    'О': ('01110','10001','10001','10001','10001','10001','01110'),
+}
+LOGO_CELL, LOGO_GAP, LOGO_SHEAR = 3.0, 0.6, 0.24
+LOGO_WORD = 'ПАСИФИК ТУРБО'
+LOGO_W = (sum(3 if ch == ' ' else 6 for ch in LOGO_WORD) - 1) * (LOGO_CELL + LOGO_GAP)
+LOGO_X0 = (W - LOGO_W) / 2.0
+LOGO_Y0 = (TRAY_FLAT_H - 7 * LOGO_CELL) / 2.0
+LOGO_BOX = (LOGO_X0 - 5.0, LOGO_Y0 - 2.0,
+            LOGO_X0 + LOGO_W + 5.0, LOGO_Y0 + 7 * LOGO_CELL + 2.0)
+
+
+def logo_cuts():
+    """Closed laser-cut pixels forming italic Cyrillic branding."""
+    cuts, cursor = [], 0.0
+    cell = LOGO_CELL
+    for ch in LOGO_WORD:
+        if ch == ' ':
+            cursor += 3 * (cell + LOGO_GAP)
+            continue
+        for row, glyph_row in enumerate(SPORT_GLYPHS[ch]):
+            for col, bit in enumerate(glyph_row):
+                if bit != '1':
+                    continue
+                x = LOGO_X0 + cursor + col * (cell + LOGO_GAP) + LOGO_SHEAR * (6 - row)
+                y = LOGO_Y0 + (6 - row) * (cell + LOGO_GAP)
+                cuts.append(dict(type='poly', name='логотип ПАСИФИК ТУРБО',
+                                 pts=[(x, y), (x + cell, y),
+                                      (x + cell, y + cell), (x, y + cell)]))
+        cursor += 6 * (cell + LOGO_GAP)
+    for i in range(3):
+        x = LOGO_X0 - 13.0 + i * 3.6
+        y = TRAY_FLAT_H / 2.0 + (i - 1) * 4.2
+        cuts.append(dict(type='poly', name='скоростные штрихи логотипа',
+                         pts=obround_pts(x + 1.7, y, 5.0, 1.5)))
+    return cuts
+
+
+# Пять рядов пазов; центр освобождён для логотипа.
 PERF = []
 for r in range(5):
     yy = TRAY_Y_TOP0 + 14.0 + r * 27.0
     off = 0.0 if r % 2 == 0 else 23.0
     x = 24.0 + off
     while x + 40.0 <= W - 18.0:
-        PERF.append((x, yy))
+        if not (LOGO_BOX[0] < x + 20.0 < LOGO_BOX[2] and
+                LOGO_BOX[1] < yy < LOGO_BOX[3]):
+            PERF.append((x, yy))
         x += 46.0
 
 
@@ -286,6 +335,7 @@ def drip_tray():
     cuts, bends = [], []
     for (x, y) in PERF:
         cuts.append(dict(type='poly', pts=obround_pts(x + 20.0, y, 40.0, 3.0)))
+    cuts.extend(logo_cuts())
     # пальцевые вырезы для съёма лотка
     for x in (96.0, 764.0):
         cuts.append(dict(type='poly', pts=obround_pts(x + 40.0, TRAY_Y_TOP0 + 70.0, 80.0, 16.0)))
@@ -300,9 +350,9 @@ def drip_tray():
         dict(p1=(0, DEV12T + DEV22), p2=(W, DEV12T + DEV22), ang=90, note='задняя стенка 22'),
         dict(p1=(0, TRAY_Y_TOP1), p2=(W, TRAY_Y_TOP1), ang=90, note='передняя стенка 22'),
     ]
-    notes = ['Сварной узел: корыто гибкой + штуцер Ø20 дренажа + 2 упора под пальцы.',
-             'Перфорация 40x3 — 90 шт., смещение через ряд.',
-             'Уклон дна 1,5° к дренажу — подгибом при сварке, контроль уровнем.']
+    notes = ['Цельная деталь из листа AISI 304: корыто сформировано гибкой; дренажный узел уточнить под выбранную ёмкость.',
+             'Перфорация 40x3 и сквозной логотип «ПАСИФИК ТУРБО» в стиле советской спортивной эмблемы.',
+             'Уклон дна формуется гибкой; сварка и крепёж для сборки стойки не предусмотрены.']
     p = Part('E6', 'Зона выдачи: перфорированный лоток', 'AISI 304, перфорация', T_GR, 1,
              W, TRAY_FLAT_H, outline, cuts, bends, notes)
     return p
@@ -312,21 +362,15 @@ def drip_tray():
 TW_FLAT = W + 2 * DEV30                  # 954.7
 TH_FLAT = TOP_D + 2 * DEV30              # 514.7
 
-# вырезы в координатах сборки (x от левого торца, y от передней кромки столешницы)
-# слева — 4 отсека под небольшие гастроёмкости GN 1/9 (176 x 108, вырез 90 x 160 R8, шаг 108)
+# Вырезы в координатах сборки: малые ёмкости + большая GN 1/2 как мойка.
 GN_X0, GN_Y0, GN_W, GN_H, GN_R, GN_STEP, GN_N = 48, 55, 90, 160, 8, 108, 4
 CUT_GNS = [dict(x=GN_X0 + i * GN_STEP, y=GN_Y0, w=GN_W, h=GN_H, r=GN_R)
            for i in range(GN_N)]
-
-# справа — одна раковина 320 x 290, поделённая пополам (2 секции 150 x 290 R12, перемычка 20)
-CUT_SINK_L = dict(x=480, y=55, w=150, h=290, r=12)
-CUT_SINK_R = dict(x=650, y=55, w=150, h=290, r=12)
-CUT_SINKS = [CUT_SINK_L, CUT_SINK_R]
-
-CUT_TAP = dict(cx=640, cy=390, d=35)
-CUT_RINSE = dict(cx=845, cy=110, d=60)
-CUT_CABLE = dict(cx=435, cy=415, d=50)
-CUT_PLUMB = dict(x=680, y=405, w=120, h=40, r=20)
+# Большая GN 1/2 имеет верхнюю рамку около 325 x 265; отверстие меньше, чтобы рамка опиралась на столешницу.
+CUT_SINK = dict(x=535, y=55, w=300, h=240, r=12)
+CUT_SINKS = [CUT_SINK]
+# Ø8 — технологическое отверстие под соединительный фитинг крана.
+CUT_TAP = dict(cx=680, cy=340, d=8)
 
 
 def _f(x, y):
@@ -343,21 +387,11 @@ def worktop():
                          pts=rrect_pts(x, y, g['w'], g['h'], g['r'], 6)))
     for i, s in enumerate(CUT_SINKS, 1):
         x, y = _f(s['x'], s['y'])
-        cuts.append(dict(type='poly', name='Раковина секция %d 150x290 R12' % i,
+        cuts.append(dict(type='poly', name='Посадочное отверстие под GN 1/2: 300x240 R12',
                          pts=rrect_pts(x, y, s['w'], s['h'], s['r'], 6)))
     x, y = _f(CUT_TAP['cx'], CUT_TAP['cy'])
-    cuts.append(dict(type='circle', name='Смеситель Ø35', cx=x, cy=y, r=CUT_TAP['d'] / 2))
-    x, y = _f(CUT_RINSE['cx'], CUT_RINSE['cy'])
-    cuts.append(dict(type='circle', name='Ринсер Ø60', cx=x, cy=y, r=CUT_RINSE['d'] / 2))
-    x, y = _f(CUT_CABLE['cx'], CUT_CABLE['cy'])
-    cuts.append(dict(type='circle', name='Кабельный ввод Ø50', cx=x, cy=y, r=CUT_CABLE['d'] / 2))
-    x, y = _f(CUT_PLUMB['x'], CUT_PLUMB['y'])
-    cuts.append(dict(type='poly', name='Ввод коммуникаций 120x40',
-                     pts=rrect_pts(x, y, CUT_PLUMB['w'], CUT_PLUMB['h'], CUT_PLUMB['r'], 6)))
-    # 4 паза под кулачковые замки + 2 Ø9 под штифты
-    for (cx, cy) in [(45, 30), (855, 30), (45, 430), (855, 430)]:
-        x, y = _f(cx, cy)
-        cuts.append(dict(type='poly', name='замок', pts=obround_pts(x, y, 24, 12)))
+    cuts.append(dict(type='circle', name='Отверстие Ø8 под соединительный фитинг крана', cx=x, cy=y, r=CUT_TAP['d'] / 2))
+    # Ненужные отверстия ринсера, кабельного ввода, коммуникаций и крепежа удалены.
     # технологические отверстия в углах гиба
     for (cx, cy) in [(0, 0), (W, 0), (0, TOP_D), (W, TOP_D)]:
         x, y = _f(cx, cy)
@@ -372,9 +406,9 @@ def worktop():
         dict(p1=(DEV30, DEV30), p2=(DEV30, DEV30 + TOP_D), ang=90, note='левая отбортовка 30'),
         dict(p1=(DEV30 + W, DEV30), p2=(DEV30 + W, DEV30 + TOP_D), ang=90, note='правая отбортовка 30'),
     ]
-    notes = ['Обеспечить плоскостность ±0,8 мм на 900 — рабочая поверхность.',
-             'Кромки вырезов под гастроёмкости GN 1/9 и двухсекционную раковину — шлифовка R1,5, без заусенца (HACCP).',
-             '4 паза 24x12 — кулачковые замки; 2 отв. Ø9 — штифты.']
+    notes = ['Вырезы под GN 1/9 и съёмную большую гастроёмкость GN 1/2 (мойка); кромки шлифовать R1,5.',
+             'Единственное отверстие для крана — Ø8 мм под соединительный фитинг; посадка корпуса крана не входит в лист.',
+             'Цельная заготовка AISI 304 с отбортовкой 30 мм; установка скользящей посадкой на опорные полки.']
     p = Part('E7', 'Рабочая зона: столешница с вырезами', 'AISI 304, шлиф. Scotch-Brite', T, 1,
              TW_FLAT, TH_FLAT, outline, cuts, bends, notes)
     return p

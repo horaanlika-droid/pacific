@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""ПАСИФИК КИТ · PK-900 — визуализация: в сборе / в разборе / в чехле.
+"""ПАСИФИК ТУРБО · PK-900 — визуализация: в сборе / в разборе / в чехле.
 Строится по той же параметрической геометрии (pk_geom), что и DXF и альбом.
 """
 import os
@@ -239,10 +239,10 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
         return
     ty = G.TOPY + dy
     rects = []
-    for c in (*G.CUT_GNS, *G.CUT_SINKS, G.CUT_PLUMB):
+    for c in (*G.CUT_GNS, *G.CUT_SINKS):
         rects.append((c['x'], c['x'] + c['w'], c['y'] + ty, c['y'] + c['h'] + ty))
     circs = []
-    for key in ('CUT_TAP', 'CUT_RINSE', 'CUT_CABLE'):
+    for key in ('CUT_TAP',):
         c = getattr(G, key)
         cx, cy, r = c['cx'], c['cy'] + ty, c['d'] / 2
         circs.append((cx, cy, r))
@@ -269,8 +269,8 @@ def worktop(sc, dz=0.0, dy=0.0, show_holes=True, show_basin=True, c_=None):
         # 4 небольших отсека под гастроёмкости GN 1/9 (глубина 65 ниже отбортовки = GN 1/9-100)
         for g in G.CUT_GNS:
             basin(sc, g, dz, dy, depth=65, full=(dz > 0))
-        # одна раковина, поделённая пополам (две секции в общем корпусе)
-        divided_sink(sc, G.CUT_SINK_L, G.CUT_SINK_R, dz, dy, depth=185, full=(dz > 0))
+        # большая съёмная гастроёмкость GN 1/2 используется как мойка
+        basin(sc, G.CUT_SINK, dz, dy, depth=170, full=(dz > 0))
 
 
 def basin(sc, c, dz, dy, depth=170, full=False):
@@ -339,15 +339,19 @@ def tray(sc, dz=0.0, dy=0.0, decks=True, apron=True):
         sc.quad([(xa, dy + 22, zdeck), (xb, dy + 22, zdeck),
                  (xb, dy + 118, zdeck), (xa, dy + 118, zdeck)], STEEL, flat=True)
     if decks:
-        for row in range(5):
-            yy = dy + 30 + row * 18
-            for k in range(18):
-                xx = 12 + k * 50 + (25 if row % 2 else 0)
-                if xx + 40 > W - 10:
-                    continue
-                sc.quad([(xx, yy, zdeck + 0.8), (xx + 40, yy, zdeck + 0.8),
-                         (xx + 40, yy + 3, zdeck + 0.8), (xx, yy + 3, zdeck + 0.8)],
-                        np.array([0.30, 0.31, 0.31]))
+        for (xx, yy) in G.PERF:
+            y_local = yy - G.TRAY_Y_TOP0
+            sc.quad([(xx, dy + y_local, zdeck + 0.8),
+                     (xx + 40, dy + y_local, zdeck + 0.8),
+                     (xx + 40, dy + y_local + 3, zdeck + 0.8),
+                     (xx, dy + y_local + 3, zdeck + 0.8)],
+                    np.array([0.30, 0.31, 0.31]))
+        for cut in G.logo_cuts():
+            pts = cut.get('pts', [])
+            if len(pts) < 4:
+                continue
+            poly = [(x, dy + y - G.TRAY_Y_TOP0, zdeck + 0.85) for x, y in pts]
+            sc.quad(poly, np.array([0.22, 0.23, 0.23]), flat=True)
 
 
 def faucet(sc, ax, dz=0.0, dy=0.0):
@@ -363,12 +367,6 @@ def faucet(sc, ax, dz=0.0, dy=0.0):
           (cx + 24, cy + 12, zb + 0.8), (cx - 24, cy + 12, zb + 0.8)]],
         facecolors=[(0.55, 0.56, 0.55, 1)], edgecolors='none', zsort='max'))
 
-
-def rinsser(sc, ax, dz=0.0, dy=0.0):
-    cx, cy = G.CUT_RINSE['cx'], G.CUT_RINSE['cy'] + G.TOPY + dy
-    zb = ST['top'][1] + dz
-    tube(ax, [(cx, cy, zb), (cx, cy, zb + 55), (cx + 4, cy - 26, zb + 92),
-              (cx + 4, cy - 52, zb + 40)], lw=2.6, color=(0.42, 0.43, 0.42))
 
 
 # ---------------------------------------------------------------- сцены
@@ -494,8 +492,8 @@ def main():
 
     # заголовок
     fp_bold = findfont(FontProperties(family='DejaVu Sans', weight='bold'))
-    fig.text(0.030, 0.945, 'ПАСИФИК КИТ', fontsize=27, fontweight='bold', color='#1e1f22')
-    fig.text(0.030, 0.903, 'PACIFIC KIT · PK-900', fontsize=10.5, color='#6a6a66')
+    fig.text(0.030, 0.945, 'ПАСИФИК ТУРБО', fontsize=27, fontweight='bold', color='#1e1f22')
+    fig.text(0.030, 0.903, 'PACIFIC TURBO · PK-900', fontsize=10.5, color='#6a6a66')
     fig.text(0.030, 0.870, 'разборная барная станция · 900 × 600 × 1050 мм · 8 элементов · '
                           'сборка без инструмента', fontsize=10.5, color='#4a4a48')
     fig.text(0.972, 0.945, 'визуализация', fontsize=12, color='#6a6a66', ha='right')
@@ -520,7 +518,6 @@ def main():
     scene_assembled(sc)
     sc.draw(ax1)
     faucet(sc, ax1)
-    rinsser(sc, ax1)
     frame(ax1, -190, 1090, -360, 760, -10, 1120, elev=43, azim=-56)
 
     # ---------- панель 2
@@ -550,7 +547,7 @@ def main():
         fig.text(p[0] + 0.008, p[1] + p[3] + 0.024, t, fontsize=13, fontweight='bold',
                  color='#1e1f22')
         fig.text(p[0] + 0.008, p[1] + p[3] + 0.008, s, fontsize=8.2, color='#6a6a66')
-    fig.text(0.030, 0.020, 'ПАСИФИК КИТ · PK-900 · визуализация по параметрической модели '
+    fig.text(0.030, 0.020, 'ПАСИФИК ТУРБО · PK-900 · визуализация по параметрической модели '
                            '(cad/pk_geom.py) · размеры в мм · AISI 304',
              fontsize=7.8, color='#8a8a86')
     fig.text(0.972, 0.020, 'лист визуализации · 1 из 1', fontsize=7.8, color='#8a8a86',
