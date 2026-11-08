@@ -1,17 +1,15 @@
 ПАСИФИК ТУРБО — комплект DXF (мм, 1:1, слой CUT = рез, BEND = гиб)
 ==============================================================================
-E1     Стенка боковая левая                      653.5 x 1069.7  t=1.5   7.08 кг  stenka_bokovaya_levaya
-E2     Стенка боковая правая                     653.5 x 1069.7  t=1.5   7.08 кг  stenka_bokovaya_pravaya
+E1     Стенка боковая левая                      654.4 x 1070.6  t=1.2   5.67 кг  stenka_bokovaya_levaya
+E2     Стенка боковая правая                     654.4 x 1070.6  t=1.2   5.67 кг  stenka_bokovaya_pravaya
 E3     Фасадный блок нижний                      900.0 x  374.8  t=1.2   3.21 кг  fasadnyy_blok_nizhniy
 E4     Фасадный блок средний                     900.0 x  374.8  t=1.2   3.21 кг  fasadnyy_blok_sredniy
 E5     Фасадный блок верхний                     900.0 x  374.8  t=1.2   3.21 кг  fasadnyy_blok_verhniy
 E6     Зона выдачи: перфорированный лоток        900.0 x  190.8  t=1.0   1.04 кг  zona_vydachi_perforirovannyy_lotok
-E7     Рабочая зона: столешница с вырезами       954.7 x  514.7  t=1.5   4.26 кг  rabochaya_zona_stoleshnica_s_vyrezami
-E8.1   Перегородка чехла                         640.0 x  240.0  t=3.0   0.42 кг  peregorodka_chehla
-E8.2   Перегородка чехла                         640.0 x  240.0  t=3.0   0.42 кг  peregorodka_chehla
-E8.3   Перегородка чехла                         500.0 x  200.0  t=3.0   0.27 кг  peregorodka_chehla
+E7     Рабочая зона: столешница с вырезами       955.6 x  515.6  t=1.2   3.42 кг  rabochaya_zona_stoleshnica_s_vyrezami
+E9     Перегородка внутренняя                    540.0 x  888.4  t=1.2   4.56 кг  peregorodka_vnutrennyaya
 
 Раскрой:
-  S1  AISI304 1.5 мм  1250 x 2500: E1, E2, E7
+  S1  AISI304 1.2 мм  1250 x 2500: E1, E2, E7, E9
   S2  AISI304 1.2 мм  1250 x 1200: E3, E4, E5
   S3  AISI304 1.0 мм  1000 x 500: E6

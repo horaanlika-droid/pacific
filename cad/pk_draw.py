@@ -283,7 +283,7 @@ def sheet(c, title, page, subtitle='', scale='', total=TOTAL_PAGES, note=''):
     line(c, (M * 0.6, PH - 22 * mm), (PW - M * 0.6, PH - 22 * mm), 0.5, INK)
     txt(c, M * 0.6 + 4 * mm, PH - 13 * mm, 'ПАСИФИК КИТ', 15, 'DVB')
     txt(c, M * 0.6 + 4 * mm + 60 * mm, PH - 13.2 * mm,
-        'мобильная барная станция  ·  900 × 600 × 1050  ·  8 элементов', 8.5, color=GREY)
+        'мобильная барная станция  ·  900 × 600 × 1050  ·  9 элементов', 8.5, color=GREY)
     txt(c, PW - M * 0.6 - 4 * mm, PH - 12.5 * mm, 'PK-900  ·  рев. B  ·  08.11.2026',
         8, align='r', color=GREY)
     # название листа
@@ -309,7 +309,7 @@ def new_canvas(path):
     c = pdfcanvas.Canvas(path, pagesize=(PW, PH))
     c.setTitle('ПАСИФИК КИТ — мобильная барная станция · альбом проекта')
     c.setAuthor('PK-900 project')
-    c.setSubject('Разборная барная станция из нержавеющей стали, 8 элементов, плоский чехол')
+    c.setSubject('Разборная барная станция из нержавеющей стали, 8 деталей + чехол, плоский')
     return c
 
 
