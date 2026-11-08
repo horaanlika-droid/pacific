@@ -284,7 +284,7 @@ def sheet(c, title, page, subtitle='', scale='', total=TOTAL_PAGES, note=''):
     txt(c, M * 0.6 + 4 * mm, PH - 13 * mm, 'ПАСИФИК КИТ', 15, 'DVB')
     txt(c, M * 0.6 + 4 * mm + 60 * mm, PH - 13.2 * mm,
         'мобильная барная станция  ·  900 × 600 × 1050  ·  8 элементов', 8.5, color=GREY)
-    txt(c, PW - M * 0.6 - 4 * mm, PH - 12.5 * mm, 'PK-900  ·  рев. A  ·  08.11.2026',
+    txt(c, PW - M * 0.6 - 4 * mm, PH - 12.5 * mm, 'PK-900  ·  рев. B  ·  08.11.2026',
         8, align='r', color=GREY)
     # название листа
     txt(c, M * 0.6 + 4 * mm, PH - 18.5 * mm, title.upper(), 10.5, 'DVB')
