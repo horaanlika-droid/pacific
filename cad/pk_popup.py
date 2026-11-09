@@ -9,7 +9,8 @@ import math, os
 import sys
 import ezdxf
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import pk_geom as G   # перфорация и логотип выдачи — из геометрии лотка
+from shapely.geometry import LineString
+from shapely.ops import unary_union
 
 OUT = os.path.join(os.path.dirname(__file__), '..', 'docs', 'popup', 'cnc')
 T = 12.0                      # толщина фанеры
@@ -54,17 +55,50 @@ def side():
     p.texts.append((20, 960, 'PK-POP-01'))
     return p
 
+# Штриховой трафарет: разрывы сохраняют перемычки и не оставляют островков.
+# Скелет букв в координатах 0..4 × 0..6; обводка каждой линии шириной 7 мм.
+LETTER_STROKES = {
+    'П': [[(0,0),(0,6),(4,6),(4,0)]],
+    'А': [[(0,0),(2,6),(4,0)], [(1,2.5),(1.9,2.5)]],
+    'С': [[(4,6),(0,6),(0,0),(4,0)]],
+    'И': [[(0,6),(0,0),(4,6),(4,0)]],
+    'Ф': [[(2,0),(2,6)], [(2,5),(0,5),(0,1)],
+          [(2,5),(4,5),(4,1)]],
+    'К': [[(0,0),(0,6)], [(4,6),(0,3),(4,0)]],
+    'Т': [[(0,6),(4,6)], [(2,6),(2,0)]],
+    'У': [[(0,6),(2,3),(4,6)], [(2,3),(0.5,0)]],
+    'Р': [[(0,0),(0,6),(4,6),(4,3),(2,3)]],
+    'Б': [[(4,6),(0,6),(0,0),(4,0),(4,3),(2,3)]],
+    'О': [[(4,4),(4,0),(0,0),(0,6),(4,6)]],
+}
+
 def tray():
-    # выдача: плита 900 × 140, 12 мм; координаты лотка из pk_geom (зона выдачи начинается на TRAY_Y_TOP0)
     p = Part('PK-POP-07', 'Выдача (плита лотка)', W, 140, 1,
-             'перфорация-слоты 40×3 и логотип ПАСИФИК ТУРБО — сквозной рез; на боковинах, без поперечины — проверить прогиб')
+             'сквозные слоты 40×7 и трафарет ПАСИФИК ТУРБО под фрезу Ø6; проверить прогиб')
     p.cuts.append(rect(0, 0, W, 140))
-    dy = G.TRAY_Y_TOP0
-    for (x, y) in G.PERF:
-        p.cuts.append(([(px, py, 0) for px, py in G.obround_pts(x + 20.0, y - dy, 40.0, 3.0)], True))
-    for c in G.logo_cuts():
-        p.cuts.append(([(x, y - dy, 0) for x, y in c['pts']], True))
-    p.texts.append((20, 120, 'PK-POP-07'))
+    # Два ряда дренажных прорезей; радиус концов 3,5 мм.
+    for y in (15, 125):
+        for x in range(30, 871, 60):
+            p.cuts.append(rrect(x - 20, y - 3.5, 40, 7, 3.5))
+
+    word = 'ПАСИФИК ТУРБО'
+    step, advance, space, width = 8.0, 46.0, 24.0, 7.0
+    total = sum(space if ch == ' ' else advance for ch in word) - (advance - 4 * step)
+    cursor = (W - total) / 2
+    for ch in word:
+        if ch == ' ':
+            cursor += space
+            continue
+        lines = [LineString([(cursor + x * step, 46 + y * step) for x, y in stroke])
+                 for stroke in LETTER_STROKES[ch]]
+        shape = unary_union(lines).buffer(width / 2, quad_segs=12)
+        shapes = list(shape.geoms) if shape.geom_type == 'MultiPolygon' else [shape]
+        for poly in shapes:
+            if poly.interiors:
+                raise ValueError(f'Буква {ch}: изолированный островок фанеры')
+            p.cuts.append(([(x, y, 0) for x, y in list(poly.exterior.coords)[:-1]], True))
+        cursor += advance
+    p.texts.append((20, 132, 'PK-POP-07'))
     return p
 
 def bottom():
@@ -201,7 +235,8 @@ def write_nest(sheets):
         for x0, y0, w, h, p, rot, k in s['placed']:
             def tr(x, y):
                 if rot:
-                    return (x0 + y, y0 + x)
+                    # Поворот на 90°, а не отражение: сохраняет направление дуг и логотипа.
+                    return (x0 + p.h - y, y0 + x)
                 return (x0 + x, y0 + y)
             for pts, closed in p.cuts:
                 q = [(*tr(x, y), b) for x, y, b in pts]
